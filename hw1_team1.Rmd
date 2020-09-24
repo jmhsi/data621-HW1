@@ -2,39 +2,49 @@
 title: "HW1"
 author: "Team 1"
 date: "September 13, 2020"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
-Loading the data
-```{r import}
+```{r}
+# load required packages
+library(ggplot2)
+library(dplyr)
+#library(tidyr)
+library(MASS)
+library(caret)
 library(RCurl)
-
-git_dir <- 'https://raw.github.com/odonnell31/data621-HW1/master/data'
-moneyball.train = read.csv(paste(git_dir, "/moneyball-training-data.csv", sep=""))
-moneyball.eval = read.csv(paste(git_dir, "/moneyball-evaluation-data.csv", sep = ""))
 ```
 
-Exploring the data
+```{r import}
+# Loading the data
+git_dir <- 'https://raw.github.com/odonnell31/data621-HW1/master/data'
+train_df = read.csv(paste(git_dir, "/moneyball-training-data.csv", sep=""))
+test_df = read.csv(paste(git_dir, "/moneyball-evaluation-data.csv", sep = ""))
+```
 
-See a summary of each column in the training set
-```{r training_data_summary}
+# 1. Data Exploration
+
+See a summary of each column in the train_dfing set
+```{r train_dfing_data_summary}
 # view a summary of all columns
-summary(moneyball.train)
+summary(train_df)
 ```
 
 For types of hits, see a histogram of each
 ```{r hits_histograms}
 par(mfrow=c(2,2))
-hist(moneyball.train$TEAM_BATTING_H,
+hist(train_df$TEAM_BATTING_H,
      main = "hits histogram", xlab = "hits (season)",
      breaks = 20)
-hist(moneyball.train$TEAM_BATTING_2B,
+hist(train_df$TEAM_BATTING_2B,
      main = "doubles histogram", xlab = "doubles (season)",
      breaks = 20)
-hist(moneyball.train$TEAM_BATTING_3B,
+hist(train_df$TEAM_BATTING_3B,
      main = "triples histogram", xlab = "triples (season)",
      breaks = 20)
-hist(moneyball.train$TEAM_BATTING_HR,
+hist(train_df$TEAM_BATTING_HR,
      main = "homeruns histogram", xlab = "homeruns (season)",
      breaks = 20)
 par(mfrow=c(1,1))
@@ -42,9 +52,116 @@ par(mfrow=c(1,1))
 
 ```{r}
 pairs(~ TARGET_WINS + TEAM_BATTING_H + TEAM_BATTING_2B
-      + TEAM_BATTING_3B + TEAM_BATTING_HR, data = moneyball.train)
+      + TEAM_BATTING_3B + TEAM_BATTING_HR, data = train_df)
+```
+```{r}
+# look at the structure of the variables
+str(train_df)
+str(eval)
+```
+
+```{r}
+# lets observe how targets_win are effected by other factors
+hist(train_df$TARGET_WINS,xlab="TARGET_WINS",main="")
+# we have no TARGET_WINS from eval
+# hist(eval$TARGET_WINS,xlab="TARGET_WINS",main="")
 ```
 
 
 
+# 2. Data Preparation
 
+1. We are told everything is standardized to match a 162 game season, so it is my preference to make TARGET_WINS a decimal of 162
+```{r}
+train_target_wins = train_df$TARGET_WINS
+train_df$TARGET_WINS = train_df$TARGET_WINS/162.
+# TARGET_WINS now a decimal of games won in 162 game season
+hist(train_df$TARGET_WINS,xlab="TARGET_WINS",main="")
+str(train_df)
+```
+
+2. Assuming that everything that is NA can be filled by 0 based on the description of variables, create columns flagging if original values were NA (e.g. create TEAM_BATTING_HBP_NA column and value is 1 if TEAM_BATTING_HBP is NA and 0 otherwise meaning it wasn't NA and had a value. Do this for all columns)
+```{r}
+# 
+has_NA = names(which(sapply(train_df, anyNA)))
+for (col in has_NA)
+{
+   new_col = (paste(col,"_NA", sep=""))
+   train_df[,new_col] = as.numeric(is.na(train_df[,col]))
+   test_df[,new_col] = as.numeric(is.na(test_df[,col]))
+}
+train_df[is.na(train_df)] = 0
+test_df[is.na(test_df)] = 0
+```
+
+# 3. Build Models
+```{r}
+# set seed for reproducibility
+n_records = nrow(train_df)
+set.seed(1)
+# Random sample indexes
+# train_df_idx <- sample(1:nrow(train_df), 0.9 * nrow(train_df))
+# val_idx <- setdiff(1:nrow(train_df), train_df_idx)
+# val = train_df[val_idx,]
+# train_df = train_df[train_df_idx,]
+```
+
+```{r}
+#model = lm(TARGET_WINS ~ ., data=train_df)
+#summary(model)
+# drop TEAM_PITCHING_SO_NA because model thinks its correlated with another var
+#train_df = subset(train_df, select = -c(TEAM_PITCHING_SO_NA))
+#model = lm(TARGET_WINS ~ ., data=train_df)
+#summary(model)
+```
+
+```{r}
+#layout(matrix(c(1,2,3,4),2,2)) # optional 4 graphs/page
+#plot(model)
+```
+
+# following ideas for model selecting taken from http://www.sthda.com/english/articles/37-model-selection-essentials-in-r/154-stepwise-regression-essentials-in-r/
+```{r}
+# Try different selection methods
+full_model = lm(TARGET_WINS ~ ., data=train_df)
+step.model <- stepAIC(full_model, direction = "both", 
+                      trace = FALSE)
+summary(step.model)
+```
+
+```{r}
+# Train model
+train_control = trainControl(method = "cv", number = 10)
+step_model = train(TARGET_WINS ~ ., data=train_df,
+                   method = "lmStepAIC",
+                   trControl = train_control,
+                   trace=FALSE)
+# Model accuracy
+step_model$results
+
+# Final model coefficients
+step_model$finalModel
+
+# Summary of model
+summary(step_model$finalModel)
+```
+
+```{r}
+model = step_model$finalModel
+plot(fitted(model), resid(model))
+hist(model$residuals)
+qqnorm(resid(model))
+qqline(resid(model))
+```
+
+# Predictions on Evaluation Set
+
+```{r}
+# convert decimals of wins back to number of wins, rounded
+test_preds = round(predict(model, newdata=test_df)*162)
+test_df$PRED_TARGET_WINS = test_preds
+# write out evaluation data with predictions
+write.csv(test_df, 'data/eval_with_preds.csv')
+hist(test_preds)
+hist(train_target_wins)
+```
