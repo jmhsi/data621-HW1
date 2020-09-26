@@ -7,6 +7,19 @@ output:
   html_document: default
 ---
 
+1.
+The “moneyball” data set contains 2276 rows and 17 columns, including variables such as TARGET_WINS, TEAM_BATTING, TEAN_BASERUN, etc. Running a summary() function on the data set, we are able to get the mean, median, first and third quartile and the minimum and maximum values for each variable. We decided to use a scattered plot of base hit by batters (TEAM_BATTING_H) vs. number of wins (TARGET_WINS) for an overview of the relationship between wins and hits, the chart shows a
+2.  Data Preparation 
+We addressed issues with imperfect data before building models or performing statistical analysis. We observed that several variables have high numbers of NA or missing values. EAM_BATTING_HBP has the highest number of missing cases i.e., 2085 (~ 90%). Before deleting this variable, we fit a model with all data then compared to after the variable is removed. The second model appeared to be a better fit with smaller standard error, more variables became significant predictors. M
+3. Build models.
+
+First we started a model with the backward elimination process with the data.  In this process, we will be rejecting predictors with p-value greater than 0.05 with the backward elimination process. We will stop after all the predictors are less than 0.05.
+The second model we decided to go with the stepwise selection which includes a semi-automated process of building a model by adding or removing variables based solely on the t-statistics of their estimated coefficients.  
+For our third model we noticed one of the variables, TEAM_PITCHING_SO, have a p-value greater than 0.05 so we decided to investigate. When we removed the variable, TEAM_PITCHING_SO, and the R squared dropped slightly. 
+
+4. Out of the three models we created, the second model created with stepwise selection is the best of the three. The Adjusted R squared is 0.4098 which explains approximately 41% of variation in Target Wins can be explained by our model. This f statistic tells us if there is a relationship between the dependent and independent variables we are testing. Generally, a large F indicates a stronger relationship and here we have 113.9. The normal quantile quantile plot for residuals displays an approximately straight line so the residuals are approximately normally distributed. The MSE is 743.6606. Using this model we were able to make predictions for our evaluation data.
+
+
 ```{r}
 # load required packages
 library(ggplot2)
