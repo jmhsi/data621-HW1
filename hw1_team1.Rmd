@@ -159,6 +159,10 @@ plot(fitted(model), resid(model))
 hist(model$residuals)
 qqnorm(resid(model))
 qqline(resid(model))
+
+# Check MSE
+mean(summary(model$residuals^2))
+# 743.6606
 ```
 
 
