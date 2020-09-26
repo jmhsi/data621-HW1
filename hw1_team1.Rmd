@@ -12,6 +12,7 @@ output:
 library(ggplot2)
 library(dplyr)
 #library(tidyr)
+library(corrplot)
 library(MASS)
 library(caret)
 library(RCurl)
@@ -30,6 +31,12 @@ See a summary of each column in the train_dfing set
 ```{r train_dfing_data_summary}
 # view a summary of all columns
 summary(train_df)
+```
+
+```{r}
+# Correlations 
+cor_train = cor(train_df,  use = "na.or.complete")
+corrplot(cor_train)
 ```
 
 For types of hits, see a histogram of each
