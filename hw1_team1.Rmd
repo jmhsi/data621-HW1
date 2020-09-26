@@ -106,30 +106,45 @@ test_df[is.na(test_df)] = 0
 # set seed for reproducibility
 n_records = nrow(train_df)
 set.seed(1)
-# Random sample indexes
-# train_df_idx <- sample(1:nrow(train_df), 0.9 * nrow(train_df))
-# val_idx <- setdiff(1:nrow(train_df), train_df_idx)
-# val = train_df[val_idx,]
-# train_df = train_df[train_df_idx,]
 ```
 
-```{r}
-#model = lm(TARGET_WINS ~ ., data=train_df)
-#summary(model)
-# drop TEAM_PITCHING_SO_NA because model thinks its correlated with another var
-#train_df = subset(train_df, select = -c(TEAM_PITCHING_SO_NA))
-#model = lm(TARGET_WINS ~ ., data=train_df)
-#summary(model)
-```
+# Model 1 - Backward Elimination
+
+We will be rejecting predictors with p-value greater than 0.05 with the backward elimination process. We will stop after all the predictors are less than 0.05
 
 ```{r}
-#layout(matrix(c(1,2,3,4),2,2)) # optional 4 graphs/page
-#plot(model)
+model <- lm(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_BATTING_SO + TEAM_BASERUN_SB + TEAM_BASERUN_CS + TEAM_BATTING_HBP + TEAM_PITCHING_H + TEAM_PITCHING_HR + TEAM_PITCHING_BB + TEAM_PITCHING_SO + TEAM_FIELDING_E + TEAM_FIELDING_DP, data=train_df)
+summary(train_df)
+
+# remove TEAM_BATTING_SO because of highest p-value
+model <- update(model, .~. - TEAM_PITCHING_HR, data=train_df)
+summary(model)
+
+model <- update(model, .~. - TEAM_BATTING_2B, data=train_df)
+summary(model)
+
+model <- update(model, .~. - TEAM_BATTING_BB, data=train_df)
+summary(model)
+
+model <- update(model, .~. - TEAM_BASERUN_CS, data=train_df)
+summary(model)
+
+model <- update(model, .~. - TEAM_BASERUN_SB, data=train_df)
+summary(model)
+
+# Plot residuals
+
+plot(fitted(model), resid(model))
+
+hist(model$residuals)
+
+qqnorm(resid(model))
+qqline(resid(model))
 ```
 
-# following ideas for model selecting taken from http://www.sthda.com/english/articles/37-model-selection-essentials-in-r/154-stepwise-regression-essentials-in-r/
+# Model 2 - Stepwise Regression
 ```{r}
-# Try different selection methods
+# Try stepwise regression as mentioned in http://www.sthda.com/english/articles/37-model-selection-essentials-in-r/154-stepwise-regression-essentials-in-r/
 full_model = lm(TARGET_WINS ~ ., data=train_df)
 step.model <- stepAIC(full_model, direction = "both", 
                       trace = FALSE)
@@ -165,7 +180,7 @@ mean(summary(model$residuals^2))
 # 743.6606
 ```
 
-
+# Model 3 - Try removing TEAM_PITCHING_SO
 ```{r}
 # Train model without TEAM_PITCHING_SO since it has a relatively high p-value
 train_control = trainControl(method = "cv", number = 10)
