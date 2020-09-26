@@ -108,38 +108,40 @@ n_records = nrow(train_df)
 set.seed(1)
 ```
 
-# Model 1 - Backward Elimination
+# Model 1 - Backward Elimination Process
 
 We will be rejecting predictors with p-value greater than 0.05 with the backward elimination process. We will stop after all the predictors are less than 0.05
 
 ```{r}
-model <- lm(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_BATTING_SO + TEAM_BASERUN_SB + TEAM_BASERUN_CS + TEAM_BATTING_HBP + TEAM_PITCHING_H + TEAM_PITCHING_HR + TEAM_PITCHING_BB + TEAM_PITCHING_SO + TEAM_FIELDING_E + TEAM_FIELDING_DP, data=train_df)
+model <- lm(TARGET_WINS ~ TEAM_BATTING_H + TEAM_BATTING_2B + TEAM_BATTING_3B + TEAM_BATTING_HR + TEAM_BATTING_BB + TEAM_PITCHING_H + TEAM_PITCHING_HR + TEAM_PITCHING_BB + TEAM_FIELDING_E, data=train_df)
 summary(train_df)
-
-# remove TEAM_BATTING_SO because of highest p-value
-model <- update(model, .~. - TEAM_PITCHING_HR, data=train_df)
-summary(model)
-
-model <- update(model, .~. - TEAM_BATTING_2B, data=train_df)
-summary(model)
 
 model <- update(model, .~. - TEAM_BATTING_BB, data=train_df)
 summary(model)
 
-model <- update(model, .~. - TEAM_BASERUN_CS, data=train_df)
+model <- update(model, .~. - TEAM_PITCHING_HR, data=train_df)
 summary(model)
+```
 
-model <- update(model, .~. - TEAM_BASERUN_SB, data=train_df)
-summary(model)
-
-# Plot residuals
-
+```{r}
 plot(fitted(model), resid(model))
-
 hist(model$residuals)
-
 qqnorm(resid(model))
 qqline(resid(model))
+```
+
+```{r}
+#predict the model on the eval
+colnames(test_df)
+#remove the predictors that have negative effect to the target wins
+
+new_eval_model = subset(test_df, select=c(TEAM_BATTING_H, TEAM_BATTING_2B, TEAM_BATTING_3B, TEAM_BATTING_HR, TEAM_PITCHING_H, TEAM_PITCHING_BB, TEAM_FIELDING_E))
+# Turn the NA values in 0
+new_eval_model[is.na(new_eval_model)] = 0
+
+# prediction model
+prediction_model <- predict(model, newdata=new_eval_model)
+prediction_model
 ```
 
 # Model 2 - Stepwise Regression
