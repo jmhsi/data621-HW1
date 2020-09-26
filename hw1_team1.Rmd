@@ -74,7 +74,7 @@ hist(train_df$TARGET_WINS,xlab="TARGET_WINS",main="")
 1. We are told everything is standardized to match a 162 game season, so it is my preference to make TARGET_WINS a decimal of 162
 ```{r}
 train_target_wins = train_df$TARGET_WINS
-train_df$TARGET_WINS = train_df$TARGET_WINS/162.
+#train_df$TARGET_WINS = train_df$TARGET_WINS/162.
 # TARGET_WINS now a decimal of games won in 162 game season
 hist(train_df$TARGET_WINS,xlab="TARGET_WINS",main="")
 str(train_df)
@@ -154,11 +154,38 @@ qqnorm(resid(model))
 qqline(resid(model))
 ```
 
+
+```{r}
+# Train model without TEAM_PITCHING_SO since it has a relatively high p-value
+train_control = trainControl(method = "cv", number = 10)
+no_TPS = subset(train_df, select=-c(TEAM_PITCHING_SO))
+step_model_noTPS = train(TARGET_WINS ~ ., data=no_SO,
+                   method = "lmStepAIC",
+                   trControl = train_control,
+                   trace=FALSE)
+# Model accuracy
+step_model_noTPS$results
+
+# Final model coefficients
+step_model_noTPS$finalModel
+
+# Summary of model
+summary(step_model_noTPS$finalModel)
+```
+
+```{r}
+model_noTPS = step_model_noTPS$finalModel
+plot(fitted(model_noTPS), resid(model_noTPS))
+hist(model_noTPS$residuals)
+qqnorm(resid(model_noTPS))
+qqline(resid(model_noTPS))
+```
+
 # Predictions on Evaluation Set
 
 ```{r}
 # convert decimals of wins back to number of wins, rounded
-test_preds = round(predict(model, newdata=test_df)*162)
+test_preds = round(predict(model, newdata=test_df)) #*162
 test_df$PRED_TARGET_WINS = test_preds
 # write out evaluation data with predictions
 write.csv(test_df, 'data/eval_with_preds.csv')
