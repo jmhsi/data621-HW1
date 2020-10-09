@@ -1,0 +1,111 @@
+---
+title: "621 HW1"
+author: "Justin Hsi"
+date: "October 9, 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+# Setup of environment and data
+
+```{r}
+# load required packages and csv
+#library(ggplot2)
+library(tidyverse)
+library(caret)
+library(pROC)
+library(RCurl)
+
+data = read.csv('classification-output-data.csv', header=T)
+# cut data to relevant columns
+data = data[,c(9:11)]
+```
+
+# 2) Use the table() function to get the raw confusion matrix for this scored dataset. Make sure you understand the output. In particular, do the rows represent the actual or predicted class? The columns?
+
+```{r}
+con_mat = table(data$scored.class, data$class)
+knitr::kable(con_mat)
+```
+The rows/x-axis are the predicted class and the columns/y-axis are the actual class. Our positive label is 1 and negative label is 0.
+
+# 3-8 & 11) Write a function that takes the dataset as a dataframe, with actual and predicted classifications identified, and returns the accuracy, error-rate, precision, sensitivity, specificity, and f1 score of the predictions. Verify that you get an accuracy and an error rate that sums to one. Use your created R functions and the provided classifciation output data set to produce all of the classification metrics discussed above.
+
+```{r}
+SummarizeBinary = function(t) {
+   # calculates TP, FP, FN, TN for use in producing accuracy, error_rate, precision, sensitivity
+   # specificity, and f1 score
+   tp = t[2,2]; fp = t[2,1]; fn = t[1,2]; tn = t[1,1]
+   
+   accuracy = (tp + tn)/(tp + fp + tn + fn)
+   error_rate = (fp + fn)/(tp + fp + tn + fn)
+   precision = (tp)/(tp + fp)
+   sensitivity = (tp)/(tp + fn)
+   specificity = (tn)/(tn + fp)
+   f1 = (2 * precision * sensitivity)/(precision + sensitivity)
+   
+   df = data.frame(accuracy = accuracy, error_rate = error_rate, precision = precision, sensitivity = sensitivity, specificity = specificity, f1 = f1)
+   return(df)
+}
+
+results = SummarizeBinary(con_mat)
+print(results$accuracy + results$error_rate)
+```
+The accuracy and error rate do sum to 1.
+```{r}
+knitr::kable(results)
+```
+
+
+# 9) Before we move on, let’s consider a question that was asked: What are the bounds on the F1 score? Show that the F1 score will always be between 0 and 1. (Hint: If 0<𝑎<1 and 0<𝑏<1 then 𝑎𝑏< 𝑎).
+
+First, tp/fp/tn/fn are in [0,inf). F1-score, only takes precision and sensitivity as inputs, multiplying them in the numerator and adding them in the denominator. Precision and sensitivity are both calculated with denominator larger or equal than numerator using tp/fp/tn/fn, which limits them to [0,1]. Thus we evaluate the F1-score formula at the bounds of precision and sensitivity. If either precision or sensitivity is 0, we get an F1-score of 0. If both happen to be 0, the F1-score will be undefined because the denominator will be 0 for the F1-score. If both precision and sensitivity are 1, the F1-score fill evaluate to 1. So, the F1-score will be in [0,1] and can potentially be undefined.
+
+# 10) Write a function that generates an ROC curve from a dataset with a true classification column (class in our example) and a probability column (scored.probability in our example). Your function should return a list that  includes  the  plot  of  the  ROC  curve  and  a  vector  that  contains  the  calculated  area  under  the  curve (AUC). Notethat I recommend using a sequence of thresholds ranging from 0 to 1 at 0.01 intervals.
+
+```{r}
+ROCAUC = function(class, scores) {
+   class = class[order(scores, decreasing=TRUE)]
+   sensitivity = cumsum(class)/sum(class)
+   specificity = cumsum(!class)/sum(!class)
+   df = data.frame(sensitivity, specificity, class)
+   dspec = c(diff(specificity), 0)
+   dsens = c(diff(sensitivity), 0)
+   AUC = round(sum(sensitivity*dspec) + sum(dsens*dspec)/2, 4)
+   results = list(df,AUC)
+   return(results)
+}
+
+ROCAUC_res = ROCAUC(data$class, data$scored.probability)
+ROC_res = ROCAUC_res[[1]]
+AUC = ROCAUC_res[[2]]
+
+ggplot(ROC_res, aes(specificity, sensitivity)) +
+   geom_line(color='steelblue') + geom_abline(linetype=2) +
+   annotate("text", x=.3, y=.6, label=paste("AUC: ", AUC))
+```
+
+
+# 12) Investigate  the caret package.  In  particular,  consider  the  functions  confusionMatrix,  sensitivity,  and specificity. Apply the functions to the data set. How do the results compare with your own functions?
+
+```{r}
+cm = confusionMatrix(as_factor(data$scored.class), as_factor(data$class), positive = "1")
+cm
+print(paste('Sensitivity: ', sensitivity(as_factor(data$scored.class), as_factor(data$class), positive = "1", negative = "0")))
+print(paste('Specificity: ', specificity(as_factor(data$scored.class), as_factor(data$class), positive = "1", negative = "0")))
+```
+The results are the same, making sure that we correctly tell caret that "1" is the positive label and "0" is the negative label.
+
+# 13) Investigate  the pROCpackage.  Use  it  to  generate  an  ROC  curve  for  the  data  set.  How  do  the  results compare with your own functions?
+
+```{r}
+proc = roc(data$class, data$scored.probability)
+plot(proc, asp=NA, legacy.axes=TRUE, print.auc=TRUE, xlab="Specificity")
+```
+
+The pROC ROC curve looks very similar to the curve generated by my function.
+
+# Appendix
+
+
+
