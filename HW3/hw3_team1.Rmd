@@ -3,34 +3,48 @@ title: "HW3"
 author: "Team 1"
 date: "October 25, 2020"
 output: 
-  prettydoc::html_pretty:
-    theme: cayman
-    toc: true
+  pdf_document: 
+    latex_engine: xelatex
 ---
 
 # 1. Data Exploration
 
-The “moneyball” training data set contains 2276 rows and 17 columns, including variables such as TARGET_WINS, TEAM_BATTING, TEAN_BASERUN, etc. The variables are thought to have a positive or negative effect on the number of games the baseball team won during the season. Running a summary() function on the data set, we are able to get the mean, median, first and third quartile and the minimum and maximum values for each variable. We included a correlation plot and pairs plot to visualize the relationship among the variables. Histograms were created for each type of hits to observe the normality of the variables. We explored the structure of the variables for both the training and evaluation data sets and finally observed how TARGET_WINS are affected by other factors. Interestingly, the number of wins seems positively correlated with all hits by batters except triples by batters, which the correlation plot shows as slightly negatively correlated. One potential explanation may be that getting triples, while good, is actually always worse than getting homeruns, so having a large number of triples may actually mean the team is just barely falling short. Nothing from the correlation plot can be used to conclude this, but it is something that can be investigated further in the future. Also surprising is that stolen bases barely has any positive correlation with wins, but that may just be due to the rarity of the event (stolen bases). TEAM_PITCHING_H, TEAM_PITCHING_BB, and TEAM_PITCHING_HR surprisingly shows a positive correlation with team wins, but maybe this alludes to having good batters and getting runs being more important to winning than stopping the opponent from getting runs. Similarly, TEAM_PITCHING_SO and TEAM_PITCHING_DP are events of denying the opponent runs, but they show a negative correlation with number of wins and may also point to getting runs for your team as the key to winning.
+The “Neighbourhood crime data” training data set contains 466 rows and 13 columns. The variables are thought to have a positive or negative effect on the crime rate being above median crime rate. Running a summary() function on the data set, we are able to get the mean, median, first and third quartile, and the minimum and maximum values for each variable. We included a correlation plot and pairs plot to visualize the relationship among the variables. From the correlation plot we see that dis is negatively correlated with the target (above-average median crime rate). This would suggest that lots of crime happens around these Boston employment centers. Unsurprisingly, the variables that describe a more affluent neighborhood seem to be less corrlated with crime and the variables associated with more poor neighborhoods seem more correlated with crime.
+We explored the structure of the variables for both the training and evaluation data sets and finally observed how Target variable is affected by other factors. 
+
 
 # 2. Data Preparation
 
-We addressed issues with imperfect data before building models or performing statistical analysis. We observed that several variables have high numbers of NA or missing values. TEAM_BATTING_HBP has the highest number of missing cases i.e., 2085 (~ 90%). Based on the variable definitions given in the assignment, it seemed reasonable that NA values meant that there were no occurrences of that event.  So we chose to create additional columns flagging whether the original variable was NA or not (1 if NA, 0 if not NA), and then filled NAs with 0.
+Interestingly this data was clean and there were no NA values identified in the data set. But going through the dataset description we could identify that some values are numerical but represents certain classes and therefore should be converted into factors for the modeling process. These included chas and rad.
+
 
 # 3. Build Models
 
-First we built a model using all predictors as numerics. This yielded an AIC of 218.05 and accuracy of 0.9163. Based on the data dictionary in the given HW3 pdf, it seemed like we should be treating the variables "chas" and "rad" as factors. We built a second model using those two variables as factors and got an AIC of 157.2 and an accuracy of 0.97. Finally, we used Stepwise AIC (both backward and forward) to do model selection and the third model got an AIC of 120.56 and an accuracy of 0.9721. The AUC of the third model was .986.
+We focused on building a logistic regression model since the target variable was binary variable with values limited to 0 or 1. We used the glm package available within R to perform this. We build 3 LR models using all independent variables or subsets of them and use stepwise regression. Once we trained the models, we stored the AIC, null, and residual deviance values in a table for easy representation of basic parameters of these models. When looking at the coefficients of our best model and their p-values, we keep the model because it has the best classification metrics that we care about. Most interesting is that it seems to find nox as the most significant with lowest p-value, which maybe suggests some closeness to industry.
 
 # 4. Select Models
 
-Out of the three models we created, the second model with stepwise selection was the best of the three. The Adjusted R squared is 0.4098 which translates to approximately 41% of variation in Target Wins can be explained by our model. The F statistic tells us if there is a relationship between the dependent and independent variables we are testing. Generally, a large F indicates a stronger relationship and we have 113.9. The normal quantile quantile plot for residuals displays an approximately straight line so the residuals are approximately normally distributed. However, there is slight deviation at the extreme values, meaning our model does have a bit of trouble predicting a very high or low number of wins accurately. The MSE is 743.6606. Using this model we were able to make predictions for the test dataset. Finally, we made a histogram of wins from the training and evaluation set to see if the prediction distribution looked fairly similar to the training distribution, which it does.
+Out of the three models, the model that included all the parameters had lowest AIC and residual deviance value. That suggested that this model was the best model, which we verified by checking the ROC-AUC curve and the confusion matrix. We also generated the AIC for other models as well using stepAIC from the MASS package. 
+Our evaluation metrics are as follows:
+Accuracy: .97
+Classification Error Rate: .03
+Precision: .9821
+Sensitivity: .9563
+Specificity: .9831
+F1 score: .9690
+AUC: .989
+True Positive: 219
+False Positive: 4
+True Negative: 233
+False Negative: 10
 
+Our predictions are attached in a csv called eval_preds.csv. See the bottom of the appendix for more details about the metrics of our best model.
 
 # Appendix
 
-
 # Library
 
-```{r}
+```{r warning=TRUE, message=FALSE}
 # load required packages
 library(ggplot2)
 library(dplyr)
@@ -41,6 +55,7 @@ library(caret)
 library(RCurl)
 library(tidyverse)
 library(pROC)
+library(kableExtra)
 library(RCurl)
 ```
 
@@ -55,38 +70,37 @@ head(train_df)
 
 # Data Exploration & Preparation
 
-
+## Summary of data
 See a summary of each column in the train_df set
 ```{r train_dfing_data_summary}
 # view a summary of all columns
 summary(train_df)
 ```
 
+## Structure of the data
 ```{r}
-# Correlations 
-cor_train = cor(train_df,  use = "na.or.complete")
-#cor_train = cor(train_df[sapply(train_df, function(x) !is.factor(x))])
-corrplot(cor_train)
-```
-
-```{r}
-pairs(~ target + zn + indus
-      + chas + nox + rm + age + dis + rad + tax + ptratio + lstat + medv, data = train_df)
-```
-
-```{r}
-# look at the structure of the variables
 str(train_df)
 str(test_df)
 ```
 
+
+
+## NA check
+```{r}
+has_NA = names(which(sapply(train_df, anyNA)))
+has_NA
+```
+There are no NAs observed
+
+
 The summary() function for the training and testing data sets indicates that there are no missing values in the data. 
 The response variable "target" is binary with 1 indicates crime rate is above median cirme rate and 0 indicates crime rate is not above median crime rate. 
 
-Let's observe how the target variable is effected by other factors:
-1. The plot of "target" against "age" shows target equalling one (above median crime rate) increases as the proportion of owner-occupied units built prior to 1940 increaases; the boxplot further shows that a larger mean of proportions of owner-occupied units built prior to 1940 is assoicated with higher crime rate.
+Let's observe how the target variable is effected by other factors: </br>
+1. The plot of "target" against "age" shows target equalling one (above median crime rate) increases as the proportion of owner-occupied units built prior to 1940 increaases; the boxplot further shows that a larger mean of proportions of owner-occupied units built prior to 1940 is assoicated with higher crime rate.</br>
 2. Plots of crime rate against pupil-teacher ratio indicate higher crime rate "1" is associated with higher pupil-teacher ratio.
 
+## Plotting
 ```{r}
 par(mfrow=c(2,2))
 # plot response variable "target" against predictor variable "age" 
@@ -98,28 +112,89 @@ plot(train_df$ptratio,train_df$target)
 boxplot(ptratio ~ target, train_df)
 ```
 
-NA stuff
+## Corr analysis
 ```{r}
-has_NA = names(which(sapply(train_df, anyNA)))
-has_NA
+# Correlations 
+cor_train <- cor(train_df,  use = "na.or.complete")
+corrplot(cor_train)
 ```
-There are no NAs
+
+```{r}
+pairs(~ target + zn + indus
+      + chas + nox + rm + age + dis + rad + tax + ptratio + lstat + medv, data = train_df)
+```
+
+
+## Converting to factors
+```{r}
+train_df$chas = as.factor(train_df$chas)
+train_df$rad = as.factor(train_df$rad)
+
+test_df$chas = as.factor(test_df$chas)
+test_df$rad = as.factor(test_df$rad)
+```
+
+```{r warning=FALSE, message=FALSE}
+
+model_metrics_df <- data.frame(Model=NA, AIC=NA, Null.Deviance=NA, Resid.Deviance=NA)
+
+
+gather_metrics_func <- function(type, model_metrics_df, modelSummary) {
+aic <- round(modelSummary$aic,4)
+nullDeviance <- round(modelSummary$null.deviance, 4)
+residDeviance <- round(modelSummary$df.residual, 4)
+
+model_metrics_df <- rbind(model_metrics_df,c(type, aic, nullDeviance, residDeviance))
+model_metrics_df <- na.omit(model_metrics_df)
+return(model_metrics_df)
+}
+```
 
 
 # Modeling
 
-## 1) Binary Logistic Regression
+
+## Binary Logistic Regression
+We are running Binary Logistic regression model with three 3 different set of parameters
+
+### Modeling with Target ~ Age
 
 ```{r}
 # preliminary exploration glm models
-glm(formula = target ~ age, family = binomial(), data = train_df)
-glm(formula = target ~ ptratio , family = binomial(), data = train_df)
+model1 <- glm(formula = target ~ age, family = binomial(), data = train_df)
+summary(model1)
+model_metrics_df <- gather_metrics_func('target ~ age', model_metrics_df, model1)
 ```
 
-### All predictor model
+
+### Modelling with Target ~ ptratio
+
+```{r}
+# preliminary exploration glm models
+model2 <- glm(formula = target ~ ptratio , family = binomial(), data = train_df)
+summary(model2)
+model_metrics_df <- gather_metrics_func('target ~ ptratio', model_metrics_df, model2)
+```
+
+### Modelling with Target ~ .(every other variable)
 ```{r}
 all_preds = glm(target ~ ., family = binomial, data = train_df)
 summary(all_preds)
+model_metrics_df <- gather_metrics_func('target ~ .', model_metrics_df, all_preds)
+
+```
+
+## Comparing different models performance
+```{r}
+
+model_metrics_df %>% kbl() %>% kable_styling()
+
+```
+
+
+Looking at the table, we can identify on a high level that 3rd model that includes all 
+the parameters is better suited. Therefore, let's come up with a confusion matrix for 3rd model that includes all the parameters.
+```{r}
 
 train_df$preds = ifelse(all_preds$fitted.values > 0.5, 1, 0)
 # look at confusion matrix
@@ -127,50 +202,48 @@ cm = confusionMatrix(as_factor(train_df$preds), as_factor(train_df$target), posi
 cm
 ```
 
-
+## Using StepAIC 
+Using the MASS package provided 'stepAIC' lets try to further refine the available models within it 
 ```{r}
 step_all_preds = stepAIC(all_preds)
 summary(step_all_preds)
 
 train_df$preds = ifelse(step_all_preds$fitted.values > 0.5, 1, 0)
+train_df$pred_proba = step_all_preds$fitted.values
 # look at confusion matrix
-cm = confusionMatrix(as_factor(train_df$preds), as_factor(train_df$target), positive = "1")
-cm
-```
-
-### Try treating chas and rad as factors
-
-```{r}
-# Based on data dictionary in hw assignment pdf and looking at the df,
-# chas and rad should probably be factors
-train_df2 = cbind(train_df)
-train_df2$chas = as.factor(train_df2$chas)
-train_df2$rad = as.factor(train_df2$rad)
-all_preds_fac = glm(target ~ ., family = binomial, data = train_df2)
-summary(all_preds_fac)
-
-train_df2$preds = ifelse(all_preds_fac$fitted.values > 0.5, 1, 0)
-# look at confusion matrix
-cm = confusionMatrix(as_factor(train_df2$preds), as_factor(train_df2$target), positive = "1")
+cm <- confusionMatrix(as_factor(train_df$preds), as_factor(train_df$target), positive = "1")
 cm
 ```
 
 ```{r}
-step_all_preds_fac = stepAIC(all_preds_fac)
-summary(step_all_preds_fac)
-
-train_df2$preds = ifelse(step_all_preds_fac$fitted.values > 0.5, 1, 0)
-train_df2$pred_proba = step_all_preds_fac$fitted.values
-# look at confusion matrix
-cm = confusionMatrix(as_factor(train_df2$preds), as_factor(train_df2$target), positive = "1")
-cm
+hist(step_all_preds$fitted.values, main= "Histogram of Predicted Probabilities", xlab="Predicted Probabilities")
 ```
 
+# Plotting ROC 
 ```{r}
-hist(step_all_preds_fac$fitted.values, main= "Histogram of Predicted Probabilities", xlab="Predicted Probabilities")
-```
-
-```{r}
-proc = roc(train_df2$target, train_df2$pred_proba)
+proc = roc(train_df$target, train_df$pred_proba)
 plot(proc, asp=NA, legacy.axes=TRUE, print.auc=TRUE, xlab="Specificity")
+```
+
+```{r}
+recall = .9563
+precision = .9821
+f1 = 2*precision*recall/(precision+recall)
+f1
+```
+
+# Conclusion
+Using the above defined steps where using stepAIC and confusionMatrix we can derive at the model that has below specifications </br>
+Sensitivity : 0.9563 </br>
+Specificity : 0.9831 </br>
+Accuracy: .97 </br>
+Precision: 0.9821 </br>
+AUC: .989
+
+# Predictions on evaluation set
+```{r}
+model = step_all_preds
+test_preds = round(predict(model, newdata=test_df, type='response')) #*162
+test_df$PRED_TARGET = test_preds
+write.csv(test_df, 'eval_with_preds.csv')
 ```
