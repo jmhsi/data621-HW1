@@ -1,7 +1,7 @@
 ---
 title: "Homework 4"
-author: "Team 1"
-date: "November 8, 2020"
+author: "Justin Hsi Team 1"
+date: "November 22, 2020"
 output:
   pdf_document: default
   html_document: default
@@ -25,6 +25,8 @@ This data was prepared to build both a binary logistic model and a multiple line
 
 We want to train the multiple linear regression model on records that actually have a valid TARGET_AMT variable, so its training dataset is a subset of the full dataset where TARGET_FLAG is 1.
 
+We cleaned up INCOME, HOME_VAL, BLUEBOOK, and OLDCLAIM to be numerics instead of factors by stripping out dollar signs and commas.
+
 We made dummy variable columns for all variables that had NA (AGE, YOJ, CAR_AGE) and then filled those columns with their median values.
 
 The training dataset for the binary logistic regression model was labeled train_df. The training dataset for the multiple linear regression model was titled train_amt_df.
@@ -38,7 +40,7 @@ The second model was a Multiple Linear Regression for the TARGET_AMT response ti
 
 # 4. Select Models
 
-To finally select a model, we used Stepwise AIC (both backward and forward) to do model selection and ended with a Binary Logistic 7661.4. 
+To finally select a model, we used Stepwise AIC (both backward and forward) to do model selection and ended with a Binary Logistic Regression AIC of 8718.2 and a Multiple Linear Regression Multiple R-squared of 0.003804.
 
 # Appendix
 
@@ -104,6 +106,24 @@ text(h$mids,h$counts,labels=h$counts)
 h <- hist(train_df$MVR_PTS)
 text(h$mids,h$counts,labels=h$counts)
 ```
+Cleanup INCOME, HOME_VAL, BLUEBOOK, and OLDCLAIM to be numerics by stripping out dollar signs and commas.
+```{r}
+numeric = function(input) {
+  out = sub("\\$", "", input)
+  out = as.numeric(sub(",", "", out))
+  return(out)
+}
+
+
+train_df = as.tbl(train_df) %>% 
+  mutate_at(c("INCOME","HOME_VAL","BLUEBOOK","OLDCLAIM"),
+            numeric)
+
+test_df= as.tbl(test_df) %>% 
+  mutate_at(c("INCOME","HOME_VAL","BLUEBOOK","OLDCLAIM"),
+            numeric)
+```
+
 
 Check for NA's
 ```{r}
@@ -126,8 +146,8 @@ for (col in has_NA)
    train_df[,new_col] = as.numeric(is.na(train_df[,col]))
    test_df[,new_col] = as.numeric(is.na(test_df[,col]))
    # fill missing numerics with median value
-   train_df[,col][is.na(train_df[,col])] = median(train_df[,col], na.rm=TRUE)
-   test_df[,col][is.na(test_df[,col])] = median(test_df[,col], na.rm=TRUE)
+   train_df[,col][is.na(train_df[,col])] = median(unlist(train_df[,col]), na.rm=TRUE)
+   test_df[,col][is.na(test_df[,col])] = median(unlist(test_df[,col]), na.rm=TRUE)
 }
 ```
 
